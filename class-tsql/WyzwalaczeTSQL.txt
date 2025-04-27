@@ -1,0 +1,14 @@
+1. Napisz wyzwalacz, który przy aktualizacji rekordu w tabeli Zwiazek_Malzenski w celu wstawienia do bazy daty wygaœniêcia zwi¹zku zadba o to, aby Data_Wygasniecia_Zwiazku by³a póŸniejsza od daty zawarcia zwi¹zku. Przy próbie wpisania b³ednych danych wypisz stosowny komunikat o b³êdzie. Za³ó¿, ¿e za ka¿dym razem aktualizowany jest jeden wiersz.
+
+2. Napisz wyzwalacz, który przy wstawianiu osoby sprawdzi, czy pesel osoby ma dok³adnie 11 cyfr. Zadanie zrealizuj w nastêpuj¹cych scenariuszach:
+a) gdy za ka¿dym razem wstawiany jest jeden wiersz
+b) gdy mo¿e byæ wstawione wiele wierszy i  jeœli którykolwiek wpis jest b³êdny, to wycofujemy ca³¹ transakcjê
+c) gdy mo¿e byæ wstawione wiele wierszy i  jeœli którykolwiek wpis jest b³êdny, to usuwamy tylko te wiersze, w których s¹ b³êdne wpisy
+
+3. Napisz wyzwalacz, który przy usuwaniu z tabeli Osoba, usunie wszystkie zwi¹zki danej osoby, zaœ przy aktualizacji peselu osoby, zaktualizuje ten pesel w tabeli Zwiazek_Malzenski. Zadanie zrealizuj w nastêpuj¹cych scenariuszach:
+a) gdy na tabelach nie ma wiêzów spójnoœci referencyjnej
+b) gdy na tabelach s¹ wiêzy spójnoœci referencyjnej
+
+4. Stwórz tabelê StatystykaMiejsc zawieraj¹c¹ pola id_miejscowosci, nazwa_miejscowosci oraz liczba_urodzonych. Napisz zapytanie uzupe³niaj¹ce tê tabelê na podstawie tabeli osoba.
+
+5. Napisz wyzwalacz, który po wstawieniu wiersza do tabeli osoba zaktualizuje tabelê StatystykaMiejsc, to znaczy w przypadku wpisania osoby urodzonej w miejscowosci, która jeszcze nie by³a wpisana, dostawi wiersz z t¹ miejscowosci¹, zaœ w przypadku, gdy ju¿ by³a wpisana, zaktualizuje liczbê osób urodzonych w tej miejscowoœci..

@@ -1,0 +1,140 @@
+1. Napisz wyzwalacz, który przy aktualizacji rekordu w tabeli Zwiazek_Malzenski w celu wstawienia do bazy daty wygaœniêcia zwi¹zku zadba o to, aby Data_Wygasniecia_Zwiazku by³a póŸniejsza od daty zawarcia zwi¹zku. Przy próbie wpisania b³ednych danych wypisz stosowny komunikat o b³êdzie.
+
+CREATE TRIGGER Zad1 ON Zwiazek_malzenski
+FOR INSERT
+AS
+DECLARE @dz datetime, @dw datetime
+SELECT @dz = data_zawarcia_zwiazku, @dw = data_wygasniecia_zwiazku  FROM inserted
+IF @dz > @dw
+BEGIN
+	ROLLBACK
+	RAISERROR('Data_zawarcia zwi¹zku musi byæ wczeœniejsza ni¿ data wygasniêcia',1,2)
+END
+
+insert into Zwiazek_malzenski values(6,1,getdate(), getdate()-1,null,12345678901,12345678902)
+
+Select * from zwiazek_malzenski
+
+2. Napisz wyzwalacz, który przy wstawianiu osoby sprawdzi, czy pesel osoby ma dok³adnie 11 cyfr. Zadanie zrealizuj w nastêpuj¹cych scenariuszach:
+a) gdy za ka¿dym razem wstawiany jest jeden wiersz
+
+CREATE TRIGGER Zad2a ON Osoba
+FOR INSERT
+AS
+DECLARE @pesel char(11)
+SELECT @pesel = pesel FROM inserted
+IF len(rtrim(@pesel)) <> 11
+BEGIN
+	ROLLBACK
+	RAISERROR('Pesel musi mieæ 11 znaków',2,3)
+END
+
+insert into osoba(pesel) values (12)
+
+b) gdy mo¿e byæ wstawione wiele wierszy i  jeœli którykolwiek wpis jest b³êdny, to wycofujemy ca³¹ transakcjê
+
+CREATE TRIGGER Zad2b ON Osoba
+FOR INSERT
+AS
+IF EXISTS (SELECT 1 FROM inserted WHERE len(rtrim(pesel)) <> 11)
+BEGIN
+    ROLLBACK;
+    Raiserror ('Pesel musi mieæ dok³adnie 11 cyfr', 1, 2);
+END;
+
+INSERT INTO Osoba (pesel) VALUES (12345678933), (12345678934), (1234567893);
+
+c) gdy mo¿e byæ wstawione wiele wierszy i  jeœli którykolwiek wpis jest b³êdny, to usuwamy tylko te wiersze, w których s¹ b³êdne wpisy
+
+CREATE TRIGGER Zad2c ON Osoba
+FOR INSERT
+AS
+IF EXISTS (SELECT 1 FROM inserted WHERE len(rtrim(pesel)) <> 11)
+   BEGIN
+      DECLARE pesel_cursor CURSOR FOR SELECT pesel FROM INSERTED WHERE len(rtrim(pesel)) <> 11;
+      DECLARE @vpesel char(11);
+      OPEN pesel_cursor
+      FETCH NEXT FROM pesel_cursor INTO @vpesel;
+      WHILE @@FETCH_STATUS = 0
+      BEGIN
+         DELETE FROM Osoba WHERE pesel = @vpesel;
+         FETCH NEXT FROM pesel_cursor INTO @vpesel;
+      END;
+      CLOSE pesel_cursor;
+      DEALLOCATE pesel_cursor;
+   END;
+
+INSERT INTO Osoba (pesel)
+VALUES (12345678933), (12345678934), (1234567893);
+
+3. Napisz wyzwalacz, który przy usuwaniu z tabeli Osoba, usunie wszystkie zwi¹zki danej osoby, zaœ przy aktualizacji peselu osoby, zaktualizuje ten pesel w tabeli Zwiazek_Malzenski. Zadanie zrealizuj w nastêpuj¹cych scenariuszach:
+a) gdy na tabelach nie ma wiêzów spójnoœci referencyjnej
+
+CREATE TRIGGER Zad3a ON Osoba
+FOR delete, update
+AS
+DECLARE @ile INT, @pesels char(11), @peseln char(11)
+Select @pesels = pesel from deleted
+SELECT @ile = COUNT(*) from inserted
+IF @ile = 0 
+   BEGIN -- jeœli 0 rekordów w inserted, to by³ to DELETE
+      Delete from zwiazek_malzenski where maz = @pesels or zona = @pesels
+   END 
+ELSE 
+   BEGIN -- UPDATE
+      Update zwiazek_malzenski set maz = @pesels where maz = @peseln
+      Update zwiazek_malzenski set zona = @pesels where zona = @peseln
+   END
+
+UWAGA: Jeœli tabele by³y zak³adane ze skryptu za³¹czonego w module Materia³y, to tam s¹ wiêzy spójnoœci referencyjnej!
+
+delete from osoba where pesel = '12345678908';
+update osoba set pesel = '12345678918' where pesel = '12345678908';
+
+b) gdy na tabelach s¹ wiêzy spójnoœci referencyjnej
+
+Obs³uga DELETE. Obs³ugê UPDATE wymyœl samodzielnie.
+
+CREATE TRIGGER Zad3b ON osoba
+INSTEAD OF DELETE
+AS
+BEGIN
+IF EXISTS (SELECT 1
+    FROM zwiazek_malzenski zm, deleted d
+    WHERE zm.maz = d.pesel or zm.zona = d.pesel)
+BEGIN
+    DELETE FROM zwiazek_malzenski WHERE maz = (SELECT pesel FROM deleted) OR zona = (SELECT pesel FROM deleted);
+END;
+
+4. Stwórz tabelê StatystykaMiejsc zawieraj¹c¹ pola id_miejscowosci, nazwa_miejscowosci oraz liczba_urodzonych. Napisz zapytanie uzupe³niaj¹ce tê tabelê na podstawie tabeli osoba.
+
+create table statystykamiejsc(id_miejscowosci int identity, nazwa_miejscowosci varchar(30), liczba_urodzonych int)
+
+insert into statystykamiejsc select id_miejscowosci, nazwa, count(*) from miejscowosc, osoba where id_miejscowosci = miejsce_urodzenia group by id_miejscowosci, nazwa
+select * from statystykamiejsc
+select * from osoba
+
+5. Napisz wyzwalacz, który po wstawieniu wiersza do tabeli osoba zaktualizuje tabelê StatystykaMiejsc, to znaczy w przypadku wpisania osoby urodzonej w miejscowosci, która jeszcze nie by³a wpisana, dostawi wiersz z t¹ miejscowosci¹, zaœ w przypadku, gdy ju¿ by³a wpisana, zaktualizuje liczbê osób urodzonych w tej miejscowoœci.
+
+CREATE TRIGGER Zad5 ON Osoba
+FOR INSERT
+AS
+DECLARE @ile INT, @idm int, @nazwa varchar(30)
+
+Select @idm = miejsce_urodzenia from inserted
+SELECT @ile = COUNT(*) from statystykamiejsc where id_miejscowosci = @idm
+Select @nazwa = nazwa from miejscowosc where id_miejscowosci = @idm
+IF @ile = 0 BEGIN -- jeœli 0 rekordów w inserted, to by³ to DELETE
+	Insert into statystykamiejsc values(@idm, @nazwa, 1)
+END ELSE BEGIN -- UPDATE
+	Update statystykamiejsc set liczba_urodzonych = liczba_urodzonych + 1 where id_miejscowosci = @idm
+END
+
+select * from osoba
+select * from miejscowosc
+insert into miejscowosc values(9,'Sopot')
+select * from statystykamiejsc
+
+Insert into osoba values(12345678919, 'Angelika', 'Sopocka', getdate(), 9, null, null, null, 'Kobieta')
+
+

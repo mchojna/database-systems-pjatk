@@ -1,0 +1,76 @@
+a) Napisz wyzwalacz, który przy aktualizacji rekordu w tabeli Zwiazek_Malzenski w celu wstawienia do bazy daty wygaœniêcia zwi¹zku zadba o to, 
+aby Data_Wygasniecia_Zwiazku by³a póŸniejsza od daty zawarcia zwi¹zku. Przy próbie wpisania b³ednych danych wypisz stosowny komunikat o b³êdzie.
+
+
+CREATE OR REPLACE TRIGGER zadanie_a
+BEFORE
+  UPDATE OF data_wygasniecia_zwiazku
+ON zwiazek_malzenski
+FOR EACH ROW WHEN (:NEW.data_wygasniecia_zwiazku <= :OLD.data_zawarcia_zwiazku)
+DECLARE
+BEGIN
+        Raise_application_error(-20500,'Data wygaœniêcia zwi¹zku musi byæ póŸnijesza ni¿ data zawarcia zwi¹zku');
+END;
+/
+
+b) Napisz wyzwalacz, który przy wstawianiu osoby sprawdzi, czy pesel osoby ma dok³adnie 11 cyfr.
+
+CREATE OR REPLACE TRIGGER zadanie_b
+BEFORE
+  INSERT ON osoba
+FOR EACH ROW
+DECLARE
+BEGIN
+        IF LENGTH(TRIM(:NEW.pesel)) != 11 THEN
+            DBMS_OUTPUT.PUT_LINE('Pesel niepoprawny, nie sk³ada siê z dok³adnie 11 cyfr');
+        ELSE
+            DBMS_OUTPUT.PUT_LINE('Pesel poprawny');
+        END IF;
+        
+END;
+/
+
+c) Napisz wyzwalacz, który wygeneruje kolejne Id_Miejscowosci przy wstawianiu do tabeli Miejscowosc. Wykorzystaj sekwencjê Seq_Miejscowosc lub wymyœl inny sposób.
+
+CREATE OR REPLACE TRIGGER zadanie_c
+BEFORE
+  INSERT ON miejscowosc
+FOR EACH ROW
+DECLARE
+    v_id    miejscowosc.id_miejscowosci%TYPE;
+BEGIN
+    SELECT  NVL(MAX(id_miejscowosci),0)+1  INTO :NEW.id_miejscowosci
+    FROM    miejscowosc;
+    
+END;
+/
+
+d) Napisz wyzwalacz, który przy usuwaniu z tabeli Osoba, usunie wszystkie zwi¹zki danej osoby, zaœ przy aktualizacji peselu osoby, zaktualizuje ten pesel w tabeli Zwiazek_Malzenski. 
+   Pamiêtaj, ¿e, aby by³o widaæ dzia³anie tego wyzwalacza, wczeœniej musisz ponownie wgraæ skrypt bez wiêzów spójnoœci referencyjnej
+
+CREATE OR REPLACE TRIGGER zadanie_d
+BEFORE
+  DELETE OR UPDATE OF pesel ON osoba  
+FOR EACH ROW
+DECLARE PRAGMA AUTONOMOUS_TRANSACTION;
+BEGIN
+    IF DELETING THEN 
+        
+        DELETE
+        FROM   zwiazek_malzenski
+        WHERE  maz = :OLD.pesel  
+           OR  zona = :OLD.pesel;
+        commit;
+        
+     ELSIF UPDATING THEN
+        UPDATE zwiazek_malzenski
+        SET    maz = :NEW.pesel
+        WHERE  maz = :OLD.pesel;
+        commit;
+        
+        UPDATE zwiazek_malzenski
+        SET    zona = :NEW.pesel
+        WHERE  zona = :OLD.pesel;
+        commit;
+     END IF;    
+END;

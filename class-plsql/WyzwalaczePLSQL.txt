@@ -1,0 +1,34 @@
+1. Napisz wyzwalacz, który przy aktualizacji rekordu w tabeli Zwiazek_Malzenski w celu wstawienia do bazy daty wygaœniêcia zwi¹zku zadba o to, aby Data_Wygasniecia_Zwiazku by³a póŸniejsza od daty zawarcia zwi¹zku. Przy próbie wpisania b³ednych danych wypisz stosowny komunikat o b³êdzie.
+
+CREATE OR REPLACE TRIGGER UpdateZwiazekMalzenski
+BEFORE UPDATE OF DATA_WYGASNIECIA_ZWIAZKU
+ON ZwiazekMalzenski
+BEGIN
+    IF :NEW.DATA_WYGASNIECIA_ZWIAZKU > :NEW.DATA_ZAWARCIA_ZWIAZKU THEN:
+        RAISE_APPLICATION_ERROR(-20100, 'Blad');
+    END IF;
+END;
+ 
+
+2. Napisz wyzwalacz, który przy wstawianiu osoby sprawdzi, czy pesel osoby ma dok³adnie 11 cyfr.
+
+CREATE OR REPLACE TRIGGER InsertOsoba
+BEFORE UPDATE OF pesel
+ON Osoba
+BEGIN
+    IF TRIM(:NEW.pesel) = 11 THEN:
+        RAISE_APPLICATION_ERROR(-20100, 'Blad');
+    END IF;
+END;
+
+3. Napisz wyzwalacz, który wygeneruje kolejne Id_Miejscowosci przy wstawianiu do tabeli Miejscowosc. Wykorzystaj sekwencjê Seq_Miejscowosc lub wymyœl inny sposób.
+
+
+4. Napisz wyzwalacz, który przy usuwaniu z tabeli Osoba, usunie wszystkie zwi¹zki danej osoby, zaœ przy aktualizacji peselu osoby, zaktualizuje ten pesel w tabeli Zwiazek_Malzenski.
+
+5. Stwórz tabelê StatystykaMiejsc zawieraj¹c¹ pola id_miejscowosci, nazwa_miejscowosci oraz liczba_urodzonych. Skorzystaj z instrukcji:
+Create table StatystykaMiejsc as Select...
+gdzie po as wystepuje dowolne zapytanie. 
+
+6. Napisz wyzwalacz, który po wstawieniu wiersza do tabeli osoba zaktualizuje tabelê StatystykaMiejsc, to znaczy w przypadku wpisania osoby urodzonej w miejscowosci, która jeszcze nie by³a wpisana, dostawi wiersz z t¹ miejscowosci¹, zaœ w przypadku, gdy ju¿ by³a wpisana, zaktualizuje liczbê osób urodzonych w tej miejscowoœci.
+

@@ -1,0 +1,262 @@
+a)	Napisz procedurê WstawMiejscowosc podaj¹c jako parametr wejœciowy nazwê miejscowoœci. Id_Miejscowoœci 
+	wylicz na podstawie istniej¹cych wpisów (ostatni jaki by³ + 1).
+
+create or replace procedure WstawMiejscowosc(vnazwa miejscowosc.nazwa%type)
+as
+begin
+ insert into miejscowosc values(seq_miejscowosc.nextval,vnazwa);
+end;
+
+wywolanie w SQL Plus i SQL Developer:
+exec WstawMiejscowosc('Toruñ');
+
+wywolanie w DataGrip:
+begin
+   WstawMiejscowosc('Toruñ');
+end;
+
+Druga wersja:
+create or replace procedure WstawMiejscowosc(vnazwa miejscowosc.nazwa%type)
+as
+vid integer;
+begin
+select max(miejscowosc.Id_Miejscowosci) + 1 into vid from miejscowosc;
+ insert into miejscowosc values(vid,vnazwa);
+end;
+
+b)	Napisz procedurê WstawPraprzodka podaj¹c jako parametry wejœciowe pesel, imiê, nazwisko, p³eæ oraz datê i 
+miejsce urodzenia. Zanim wstawisz dane, sprawdŸ, czy nie ma pracownika o zadanym peselu.
+
+create or replace procedure WstawPraprzodka(vpesel osoba.pesel%type, vimie osoba.imie%type,
+vnazwisko osoba.nazwisko%type, vplec osoba.plec%type, vdata osoba.data_urodzenia%type, vmiejsce osoba.miejsce_urodzenia%type)
+as
+vile integer;
+begin
+select count(*) into vile from osoba where pesel=vpesel;
+if vile = 0 then
+ insert into osoba(pesel, imie, nazwisko, data_urodzenia, miejsce_urodzenia,plec)
+ values(vpesel,vimie,vnazwisko,vdata,vmiejsce,vplec);
+else
+dbms_output.put_line ('Istnieje osoba o podanym peselu');
+end if;
+end;
+
+execute WstawPraprzodka(22345648901,'Monika','Nowak','K','09-aug-1944',5);
+
+c)	Napisz procedurê WstawPotomka podaj¹c jako parametry wejœciowe pesel, imiê, nazwisko, p³eæ, datê i 
+	miejsce urodzenia oraz pesel matki i ojca. Zanim wstawisz dane, sprawdŸ, czy nie ma pracownika o zadanym 
+	peselu oraz, czy s¹ w bazie pesele rodziców.
+
+
+create or replace procedure WstawPotomka(vpesel osoba.pesel%type, vimie osoba.imie%type, 
+vnazwisko osoba.nazwisko%type, vplec osoba.plec%type, vdata osoba.data_urodzenia%type, 
+vmiejsce osoba.miejsce_urodzenia%type, vmatka osoba.matka%type, vojciec osoba.ojciec%type) 
+as
+vile integer;
+begin
+  select count(*) into vile from osoba where pesel=vpesel;
+  if vile = 0 then
+      select count(*) into vile from osoba where pesel=vmatka;
+      if vile=0 then 
+        dbms_output.put_line ('Nie ma w bazie peselu matki');
+      else
+          select count(*) into vile from osoba where pesel=vojciec;
+          if vile=0 then 
+            dbms_output.put_line ('Nie ma w bazie peselu ojca');
+          else
+            insert into osoba(pesel, imie, nazwisko, plec, data_urodzenia, miejsce_urodzenia, matka, ojciec)
+            values(vpesel,vimie,vnazwisko,vplec,vdata,vmiejsce,vmatka, vojciec);
+          end if;
+      end if;
+  else
+    dbms_output.put_line ('Istnieje osoba o podanym peselu');
+  end if;
+end;
+
+2 sposób: 
+
+CREATE OR REPLACE PROCEDURE Test1 (vpesel char, vimie varchar2, vnazwisko varchar2, vmiejsceur integer, vplec char, vdataur date, vmatka char, vojciec char)
+AS
+vlicz1 number(3);
+vlicz2 number(3);
+vlicz3 number(3);
+
+Begin
+
+Select count(*) into vlicz1 From Osoba Where pesel = vpesel;
+Select count(*) into vlicz2 From Osoba Where pesel = vmatka;
+Select count(*) into vlicz3 From Osoba Where pesel = vojciec;
+
+Case
+	When vlicz1 <> 0 then
+		 Dbms_output.put_line('Osoba o podanym peselu jest juz w bazie');
+	When vlicz2 = 0 then
+		 Dbms_output.put_line('Matki podanej osoby nie ma w bazie');
+	When vlicz3 = 0 then
+		 Dbms_output.put_line('Ojca podanej osoby nie ma w bazie');
+	Else
+Insert into Osoba values(vpesel, vimie, vnazwisko, vdataur, vmiejsceur, null, vmatka, vojciec, vplec);
+End Case;
+End;
+
+execute WstawPotomka(22345678911,'Monika','Nowak','K','09-aug-1944',5,12345678901,12345678908);
+execute WstawPotomka(22345678911,'Monika','Nowak','K','09-aug-1944',5,12345678901,12345678908);
+execute WstawPotomka(22345678912,'Monika','Nowak','K','09-aug-1944',5,12345678901,12345678923);
+
+
+d)	Napisz procedurê RejestrujZgon podaj¹c jako parametr wejœciowy pesel i datê zgonu. Ta procedura ma rzecz 
+jasna aktualizowaæ rekord o danym peselu wstawiaj¹c zadan¹ na wejœciu datê zgonu.
+
+
+
+create or replace procedure RejestrujZgon(vpesel osoba.pesel%type, vdata_zg osoba.data_zgonu%type)
+as
+begin
+update osoba set data_zgonu=vdata_zg where pesel=vpesel;
+end;
+
+execute RejestrujZgon(22345678911,'01-dec-1989');
+
+e)	Napisz procedurê PodajRodziców podaj¹c jako parametr wejœciowy pesel osoby, której rodziców chcemy 
+znaæ. Procedura ma wypisywaæ na ekran imiona i nazwiska rodziców osoby o zadanym peselu.
+
+create or replace procedure PodajRodzicow(vpesel osoba.pesel%type)
+as
+imiematki varchar2(30);
+imieojca varchar2(30);
+nazwmatki varchar2(30);
+nazwojca varchar2(30);
+
+begin
+
+    select r.imie, r.nazwisko into imiematki, nazwmatki from osoba os, osoba r 
+    where os.pesel=vpesel and r.pesel=os.matka;
+    select r.imie, r.nazwisko into imieojca, nazwojca from osoba os, osoba r 
+    where os.pesel=vpesel and r.pesel=os.ojciec;
+    dbms_output.put_line('Matka: '||imiematki||' '||nazwmatki||' Ojciec: '||imieojca||' '||nazwojca);
+
+end;
+
+execute PodajRodzicow(12345678905);
+
+f)	Napisz procedurê PodajRodzeñstwo podaj¹c jako parametr wejœciowy pesel osoby, której rodzeñstwo chcemy
+znaæ. Procedura ma wypisywaæ na ekran imiona i nazwiska sióstr i braci osoby o zadanym peselu.
+
+
+create or replace procedure PodajRodzenstwo(vpesel osoba.pesel%type)
+as
+vplec varchar(30);
+  CURSOR kursor_osoba IS
+    select r.imie, r.nazwisko, r.plec from osoba os, osoba r 
+      where os.pesel=vpesel and (r.matka=os.matka or r.ojciec=os.ojciec)
+      and r.pesel<>vpesel;
+  rek_osoby kursor_osoba%ROWTYPE;
+begin
+Dbms_output.Put_line('Rodzenstwo:');
+OPEN kursor_osoba;
+      LOOP
+           FETCH kursor_osoba INTO rek_osoby;
+ 	   EXIT WHEN kursor_osoba%NOTFOUND;
+           if rek_osoby.plec='K' then vplec:='siostra';
+	   elsif rek_osoby.plec='M'then vplec:='brat';
+	   else vplec:='';
+           end if;
+           Dbms_output.Put_line(rek_osoby.imie||' '||rek_osoby.nazwisko||' '||vplec);
+      END LOOP;
+CLOSE kursor_osoba;
+end;
+
+
+execute  PodajRodzenstwo(12345678903);
+
+
+g)	Napisz procedurê UzupelnijPlec uzupe³niaj¹c¹ pole p³eæ. Jeœli pole Imie koñczy siê na literê "a" w pole 
+p³eæ nale¿y wpisaæ "kobieta", w przeciwnym przypadku – "mê¿czyzna". Pamiêtaj o koniecznoœci stworzenia kursora z 
+klauzul¹ "FOR UPDATE".
+
+create or replace procedure UzupelnijPlec
+as
+CURSOR kursor_osoba IS
+    select imie, plec from osoba for update of plec;
+  rek_osoby kursor_osoba%ROWTYPE;
+begin
+OPEN kursor_osoba;
+      LOOP
+           FETCH kursor_osoba INTO rek_osoby;
+ 	   EXIT WHEN kursor_osoba%NOTFOUND;
+	   if rek_osoby.imie like '%a' then update osoba set plec='kobieta' where current of kursor_osoba;
+	   else update osoba set plec='mê¿czyzna' where current of kursor_osoba;
+	   end if;
+      END LOOP;
+CLOSE kursor_osoba;
+end;
+
+execute  UzupelnijPlec;
+
+h)	Napisz procedurê StatystykaZwiazkow wypisuj¹c¹ na ekran i rejestruj¹c¹ w stworzonej uprzednio tabeli 
+Statystyka nastêpuj¹ce informacje: Rok, Liczba zawartych zwi¹zków, Liczba rozwodów.
+
+
+CREATE TABLE Statystyka(rok number(4), liczba_zawartych number(4), liczba_rozwodow number(4));
+
+create or replace procedure StatystykaZwiazkow
+as
+CURSOR zwiazki IS
+    select data_zawarcia_zwiazku, data_wygasniecia_zwiazku, powod_wygasniecia_zwiazku from zwiazek_malzenski;
+  rek_zwiazku zwiazki%ROWTYPE;
+pom integer;
+begin
+pom:=0;
+update Statystyka set liczba_rozwodow=0;
+update statystyka set liczba_zawartych=0;
+OPEN zwiazki;
+      LOOP
+           FETCH zwiazki INTO rek_zwiazku;
+ 	   EXIT WHEN zwiazki%NOTFOUND;
+	   select count(*) into pom from statystyka where rok=extract(year from rek_zwiazku.data_zawarcia_zwiazku);
+	   if pom=0 then
+		insert into statystyka values (extract(year from rek_zwiazku.data_zawarcia_zwiazku),1,0);
+	   else update statystyka set liczba_zawartych=liczba_zawartych+1 where rok=extract(year from rek_zwiazku.data_zawarcia_zwiazku);
+	   end if;
+	   if rek_zwiazku.powod_wygasniecia_zwiazku like 'rozwód' then
+		   select count(*) into pom from statystyka where rok=extract(year from rek_zwiazku.data_wygasniecia_zwiazku);
+		   if pom=0 then
+			insert into statystyka values (extract(year from rek_zwiazku.data_wygasniecia_zwiazku),0,1);
+		   else update statystyka set liczba_rozwodow=liczba_rozwodow+1
+			where rok=extract(year from rek_zwiazku.data_wygasniecia_zwiazku);
+		   end if;
+	   end if;
+      END LOOP;
+CLOSE zwiazki;
+end;
+
+execute  StatystykaZwiazkow;
+
+--select * from zwiazek_malzenski;
+--select * from statystyka;
+--update zwiazek_malzenski set data_wygasniecia_zwiazku='01-dec-2001' where Id_Zwiazku=2;
+--update zwiazek_malzenski set powod_wygasniecia_zwiazku='rozwód' where Id_Zwiazku=2;
+--select * from zwiazek_malzenski;
+--select * from statystyka;
+
+i)	Napisz procedurê DrzewoGenealogiczne podaj¹c jako parametr wejœciowy pesel osoby bêd¹cej korzeniem drzewa. Procedura ma wypisywaæ na ekran 
+imiona i nazwiska kolejnych przodków, wspó³ma³¿onków i potomków.
+
+create or replace procedure DrzewoGenealogiczne(vpesel osoba.pesel%type)
+as
+CURSOR przodek IS
+  SELECT PRIOR IMIE pimie, PRIOR NAZWISKO pnazwisko, IMIE, NAZWISKO
+  FROM OSOBA
+  START WITH PESEL = vpesel
+  CONNECT BY (PRIOR PESEL = MATKA OR PRIOR PESEL = OJCIEC);
+  rek_rodzic przodek%rowtype;
+begin
+OPEN przodek;
+	LOOP
+	   FETCH przodek INTO rek_rodzic;
+ 	   EXIT WHEN przodek%NOTFOUND;
+	   Dbms_output.Put_line('Rodzic: '||rek_rodzic.pimie||' '||rek_rodzic.pnazwisko||' Dziecko: '||rek_rodzic.imie||' '||rek_rodzic.nazwisko);
+	END LOOP;
+end;
+
+execute DrzewoGenealogiczne(12345678902);

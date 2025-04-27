@@ -1,0 +1,8 @@
+CREATE TABLE Wydzial (IdWydzial Int Identity Primary Key,
+                    Wydzial Varchar(30) NOT NULL UNIQUE,
+                    IdOsoba Int FOREIGN KEY References Dydaktyk);
+go
+INSERT INTO Wydzial (Wydzial, IdOsoba)
+VALUES ('Informatyki', 2),
+        ('Zarządzania', 3),
+        ('Kultury', 9);   
